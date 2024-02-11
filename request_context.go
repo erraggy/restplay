@@ -40,9 +40,7 @@ func GetClientID(req *http.Request) (string, error) {
 
 	// next check bearer token
 	if auth := req.Header.Get("Authorization"); strings.HasPrefix(auth, bearerPrefix) {
-		token := strings.TrimPrefix(auth, bearerPrefix)
-		clientID, err := GetClientIDFromBearerToken(token)
-		return clientID, err
+		return GetClientIDFromBearerToken(strings.TrimPrefix(auth, bearerPrefix))
 	}
 
 	// finally check in the request form
