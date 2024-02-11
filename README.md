@@ -1,0 +1,2 @@
+# RestPlay - my personal RESTful playground
+The code contained in this repository may change or be removed completely at any time. This is a personal project of mine and I don't intend on supporting it as any sort of library.
