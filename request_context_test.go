@@ -20,7 +20,7 @@ type argsGetClientID struct {
 }
 
 func TestGetClientID(t *testing.T) {
-	const baseURL = "http://example.com"
+	const baseURL = "https://example.com"
 
 	tests := map[string]argsGetClientID{
 		"should find client_id for form POSTed requests without error": {
@@ -36,11 +36,29 @@ func TestGetClientID(t *testing.T) {
 			UseBasicAuth: true,
 		},
 		"should find client_id in Bearer token of requests without error": {
-			ClientID:       "robbie-BearerToken-client-id",
+			ClientID:       "robbie-BearerToken-GET-client-id",
+			UseBearerToken: true,
+		},
+		"should find client_id in Bearer token of PUT requests without error": {
+			Method:         http.MethodPut,
+			ClientID:       "robbie-BearerToken-PUT-client-id",
 			UseBearerToken: true,
 		},
 		"should return error on GET without any client_id provided": {
 			ExpectedErrorSub: "failed to find client_id",
+		},
+		"should return error on PATCH without any client_id provided": {
+			Method:           http.MethodPatch,
+			ContentType:      formContentType,
+			ExpectedErrorSub: "failed to find client_id",
+		},
+		"should return error on BasicAuth token requests without any client_id provided": {
+			UseBasicAuth:     true,
+			ExpectedErrorSub: "failed to find client_id",
+		},
+		"should return error on Bearer token requests without any client_id provided": {
+			UseBearerToken:   true,
+			ExpectedErrorSub: "invalid token",
 		},
 	}
 	for name, args := range tests {
@@ -61,7 +79,7 @@ func TestGetClientID(t *testing.T) {
 				if err != nil {
 					errStr := err.Error()
 					if !strings.Contains(errStr, args.ExpectedErrorSub) {
-						t.Errorf("Expected error:\n  %s\n\nTo contain:\n  %q", errStr, args.ExpectedErrorSub)
+						t.Errorf("\nExpected error:\n  %q\n\nTo contain:\n  %q", errStr, args.ExpectedErrorSub)
 					}
 				} else {
 					t.Errorf("Expected an error that contained: %q but error was nil", args.ExpectedErrorSub)
