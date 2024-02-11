@@ -71,7 +71,7 @@ func TestGetClientID(t *testing.T) {
 
 			// Now do the actual thing: GetClientID
 			var actualClientID string
-			actualClientID, req, err = GetClientID(req)
+			actualClientID, err = GetClientID(req)
 
 			// Assert all of our expectations
 			if len(args.ExpectedErrorSub) > 0 {

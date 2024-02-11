@@ -27,25 +27,22 @@ var (
 )
 
 // GetClientID will attempt to extract the client_id from the request.
-// It returns the client_id, cloned request, and possible error.
-//
-// Note: The request will be cloned if the form must be parsed to allow the
-// body to be read again.
-func GetClientID(req *http.Request) (string, *http.Request, error) {
+// It returns the client_id, and possible error.
+func GetClientID(req *http.Request) (string, error) {
 	if req == nil {
-		return "", nil, ErrNilRequest
+		return "", ErrNilRequest
 	}
 
 	// first attempt basic-auth
 	if clientID, _, ok := req.BasicAuth(); ok && clientID != "" {
-		return clientID, req, nil
+		return clientID, nil
 	}
 
 	// next check bearer token
 	if auth := req.Header.Get("Authorization"); strings.HasPrefix(auth, bearerPrefix) {
 		token := strings.TrimPrefix(auth, bearerPrefix)
 		clientID, err := GetClientIDFromBearerToken(token)
-		return clientID, req, err
+		return clientID, err
 	}
 
 	// finally check in the request form
@@ -58,34 +55,34 @@ func GetClientID(req *http.Request) (string, *http.Request, error) {
 				// here is the only case where we will need to copy the request body so do so now
 				bodyBytes, err := io.ReadAll(req.Body)
 				if err != nil {
-					return "", req, fmt.Errorf("restplay: failed to read request body: %w", err)
+					return "", fmt.Errorf("restplay: failed to read request body: %w", err)
 				}
 				req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 				if err = req.ParseForm(); err != nil {
 					// reset body before returning the error
 					req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-					return "", req, fmt.Errorf("restplay: failed to parse request form from body: %w", err)
+					return "", fmt.Errorf("restplay: failed to parse request form from body: %w", err)
 				}
 				req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 			}
 			if clientID := req.Form.Get(clientIDKey); clientID != "" {
-				return clientID, req, nil
+				return clientID, nil
 			}
 		}
 	default:
 		if req.Form == nil {
 			// this call to ParseFrom() will not touch the body because of the method
 			if err := req.ParseForm(); err != nil {
-				return "", req, fmt.Errorf("restplay: failed to parse request form from URL: %w", err)
+				return "", fmt.Errorf("restplay: failed to parse request form from URL: %w", err)
 			}
 		}
 		if clientID := req.Form.Get(clientIDKey); clientID != "" {
-			return clientID, req, nil
+			return clientID, nil
 		}
 	}
 
 	// all known cases exhausted without finding a client_id
-	return "", req, ErrMissingClientID
+	return "", ErrMissingClientID
 }
 
 // GetClientIDFromBearerToken will attempt to parse/validate the token and return the identity
