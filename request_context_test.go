@@ -64,7 +64,7 @@ func TestGetClientID(t *testing.T) {
 	for name, args := range tests {
 		t.Run(name, func(t *testing.T) {
 			// Test Case Setup
-			req, err, bodyAsString := setupGetClientID(args, baseURL)
+			req, bodyAsString, err := setupGetClientID(args, baseURL)
 			if err != nil {
 				t.Fatalf("failed to create request for test: %s", err)
 			}
@@ -100,14 +100,18 @@ func TestGetClientID(t *testing.T) {
 					t.Errorf("Unable to read request body after passed to GetClientID(): %s", err)
 				}
 				if bodyAsString != string(afterBody) {
-					t.Errorf("Request body after passed to GetClientID changed:\n  Original: %q\n  After:   %q", bodyAsString, afterBody)
+					t.Errorf(
+						"Request body after passed to GetClientID changed:\n  Original: %q\n  After:   %q",
+						bodyAsString,
+						afterBody,
+					)
 				}
 			}
 		})
 	}
 }
 
-func setupGetClientID(args argsGetClientID, baseURL string) (*http.Request, error, string) {
+func setupGetClientID(args argsGetClientID, baseURL string) (*http.Request, string, error) {
 	var (
 		form         url.Values
 		req          *http.Request
@@ -149,5 +153,5 @@ func setupGetClientID(args argsGetClientID, baseURL string) (*http.Request, erro
 	if err == nil && args.ContentType != "" {
 		req.Header.Set(contentTypeHeaderKey, args.ContentType)
 	}
-	return req, err, bodyAsString
+	return req, bodyAsString, err
 }

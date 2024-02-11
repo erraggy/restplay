@@ -18,12 +18,12 @@ const (
 )
 
 var (
-	// InvalidBearerTokenErr is returned is a Bearer token is defined but invalid
-	InvalidBearerTokenErr = errors.New("restplay: invalid token")
-	// NilRequestErr is returned if a nil *http.Request is received
-	NilRequestErr = errors.New("restplay: cannot get client_id from nil request")
-	// MissingClientIDErr is the default error returned if no client_id is found
-	MissingClientIDErr = errors.New("restplay: failed to find client_id in request")
+	// ErrInvalidBearerToken is returned is a Bearer token is defined but invalid
+	ErrInvalidBearerToken = errors.New("restplay: invalid token")
+	// ErrNilRequest is returned if a nil *http.Request is received
+	ErrNilRequest = errors.New("restplay: cannot get client_id from nil request")
+	// ErrMissingClientID is the default error returned if no client_id is found
+	ErrMissingClientID = errors.New("restplay: failed to find client_id in request")
 )
 
 // GetClientID will attempt to extract the client_id from the request.
@@ -33,7 +33,7 @@ var (
 // body to be read again.
 func GetClientID(req *http.Request) (string, *http.Request, error) {
 	if req == nil {
-		return "", nil, NilRequestErr
+		return "", nil, ErrNilRequest
 	}
 
 	// first attempt basic-auth
@@ -85,18 +85,18 @@ func GetClientID(req *http.Request) (string, *http.Request, error) {
 	}
 
 	// all known cases exhausted without finding a client_id
-	return "", req, MissingClientIDErr
+	return "", req, ErrMissingClientID
 }
 
 // GetClientIDFromBearerToken will attempt to parse/validate the token and return the identity
 func GetClientIDFromBearerToken(token string) (string, error) {
 	fields := strings.Split(token, ".")
 	if len(fields) != 2 {
-		return "", InvalidBearerTokenErr
+		return "", ErrInvalidBearerToken
 	}
 	clientID := fields[0]
 	if clientID == "" {
-		return "", InvalidBearerTokenErr
+		return "", ErrInvalidBearerToken
 	}
 	return clientID, nil
 }
