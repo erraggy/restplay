@@ -9,17 +9,20 @@ import (
 	"testing"
 )
 
+// test case types
+type argsGetClientID struct {
+	Method           string
+	ContentType      string
+	ClientID         string
+	ExpectedErrorSub string
+	UseBasicAuth     bool
+	UseBearerToken   bool
+}
+
 func TestGetClientID(t *testing.T) {
 	const baseURL = "http://example.com"
 
-	tests := map[string]struct {
-		Method           string
-		ContentType      string
-		ClientID         string
-		ExpectedErrorSub string
-		UseBasicAuth     bool
-		UseBearerToken   bool
-	}{
+	tests := map[string]argsGetClientID{
 		"should find client_id for form POSTed requests without error": {
 			Method:      http.MethodPost,
 			ContentType: formContentType,
@@ -40,69 +43,28 @@ func TestGetClientID(t *testing.T) {
 			ExpectedErrorSub: "failed to find client_id",
 		},
 	}
-	for name, tt := range tests {
+	for name, args := range tests {
 		t.Run(name, func(t *testing.T) {
 			// Test Case Setup
-			var (
-				form         url.Values
-				req          *http.Request
-				err          error
-				bodyAsString string
-				method       = func() string {
-					if tt.Method != "" {
-						return tt.Method
-					}
-					return http.MethodGet
-				}()
-			)
-			switch {
-			case tt.UseBearerToken:
-				req, err = http.NewRequest(method, baseURL, nil)
-				if err == nil {
-					req.Header.Set("Authorization", fmt.Sprintf("Bearer %s.othertokenstuffhere", tt.ClientID))
-				}
-			case tt.UseBasicAuth:
-				req, err = http.NewRequest(method, baseURL, nil)
-				if err == nil {
-					req.SetBasicAuth(tt.ClientID, "password")
-				}
-			default:
-				form = make(url.Values, 1)
-				form.Set(clientIDKey, tt.ClientID)
-				switch tt.Method {
-				case http.MethodPost, http.MethodPut, http.MethodPatch:
-					bodyAsString = form.Encode()
-					req, err = http.NewRequest(method, baseURL, strings.NewReader(bodyAsString))
-					if err == nil {
-						req.Header.Set("Content-Length", fmt.Sprintf("%d", len(bodyAsString)))
-					}
-				default:
-					u := fmt.Sprintf("%s?%s", baseURL, form.Encode())
-					req, err = http.NewRequest(method, u, nil)
-				}
-			}
+			req, err, bodyAsString := setupGetClientID(args, baseURL)
 			if err != nil {
 				t.Fatalf("failed to create request for test: %s", err)
 			}
 
-			if tt.ContentType != "" {
-				req.Header.Set(contentTypeHeaderKey, tt.ContentType)
-			}
-
 			// Now do the actual thing: GetClientID
 			var actualClientID string
-			actualClientID, _, err = GetClientID(req)
+			actualClientID, req, err = GetClientID(req)
 
 			// Assert all of our expectations
-			if len(tt.ExpectedErrorSub) > 0 {
+			if len(args.ExpectedErrorSub) > 0 {
 				// error expected
 				if err != nil {
 					errStr := err.Error()
-					if !strings.Contains(errStr, tt.ExpectedErrorSub) {
-						t.Errorf("Expected error:\n  %s\n\nTo contain:\n  %q", errStr, tt.ExpectedErrorSub)
+					if !strings.Contains(errStr, args.ExpectedErrorSub) {
+						t.Errorf("Expected error:\n  %s\n\nTo contain:\n  %q", errStr, args.ExpectedErrorSub)
 					}
 				} else {
-					t.Errorf("Expected an error that contained: %q but error was nil", tt.ExpectedErrorSub)
+					t.Errorf("Expected an error that contained: %q but error was nil", args.ExpectedErrorSub)
 				}
 			} else {
 				// no error expected
@@ -110,8 +72,8 @@ func TestGetClientID(t *testing.T) {
 					t.Errorf("No error expected but got: %q", err)
 				}
 			}
-			if actualClientID != tt.ClientID {
-				t.Errorf("GetClientID() got = %q, want %q", actualClientID, tt.ClientID)
+			if actualClientID != args.ClientID {
+				t.Errorf("GetClientID() got = %q, want %q", actualClientID, args.ClientID)
 			}
 			if len(bodyAsString) > 0 {
 				// we now must test that we can read our request body again
@@ -125,4 +87,49 @@ func TestGetClientID(t *testing.T) {
 			}
 		})
 	}
+}
+
+func setupGetClientID(args argsGetClientID, baseURL string) (*http.Request, error, string) {
+	var (
+		form         url.Values
+		req          *http.Request
+		err          error
+		bodyAsString string
+		method       = func() string {
+			if args.Method != "" {
+				return args.Method
+			}
+			return http.MethodGet
+		}()
+	)
+	switch {
+	case args.UseBearerToken:
+		req, err = http.NewRequest(method, baseURL, nil)
+		if err == nil {
+			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s.othertokenstuffhere", args.ClientID))
+		}
+	case args.UseBasicAuth:
+		req, err = http.NewRequest(method, baseURL, nil)
+		if err == nil {
+			req.SetBasicAuth(args.ClientID, "password")
+		}
+	default:
+		form = make(url.Values, 1)
+		form.Set(clientIDKey, args.ClientID)
+		switch args.Method {
+		case http.MethodPost, http.MethodPut, http.MethodPatch:
+			bodyAsString = form.Encode()
+			req, err = http.NewRequest(method, baseURL, strings.NewReader(bodyAsString))
+			if err == nil {
+				req.Header.Set("Content-Length", fmt.Sprintf("%d", len(bodyAsString)))
+			}
+		default:
+			u := fmt.Sprintf("%s?%s", baseURL, form.Encode())
+			req, err = http.NewRequest(method, u, nil)
+		}
+	}
+	if err == nil && args.ContentType != "" {
+		req.Header.Set(contentTypeHeaderKey, args.ContentType)
+	}
+	return req, err, bodyAsString
 }
