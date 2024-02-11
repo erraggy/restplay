@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -44,39 +45,49 @@ func GetClientID(req *http.Request) (string, error) {
 	}
 
 	// finally check in the request form
+	// before accessing the form we may need to read the body so
 	switch req.Method {
 	case http.MethodPost, http.MethodPatch, http.MethodPut:
 		// if the content-type is application/x-www-form-urlencoded then we look in the PostForm
 		mimetype, _, _ := mime.ParseMediaType(req.Header.Get(contentTypeHeaderKey))
 		if mimetype == formContentType && req.Body != nil {
 			if req.Form == nil {
-				// here is the only case where we will need to copy the request body so do so now
+				// here is the only case where we will need to copy the request body
 				bodyBytes, err := io.ReadAll(req.Body)
 				if err != nil {
+					// this fails to reset the body, but not my fault
 					return "", fmt.Errorf("restplay: failed to read request body: %w", err)
 				}
+				// since we had to read the body in order to copy its content,
+				// we must reset it before the following call to ParseForm()
 				req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 				if err = req.ParseForm(); err != nil {
-					// reset body before returning the error
+					// reset body before returning the error, since the ParseForm() may
+					// have read the body again
 					req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 					return "", fmt.Errorf("restplay: failed to parse request form from body: %w", err)
 				}
+				// we successfully parsed the form, so we can now reset the body
 				req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 			}
-			if clientID := req.Form.Get(clientIDKey); clientID != "" {
-				return clientID, nil
+		} else {
+			// no need to touch the request body, so this will protect from nil access
+			if req.Form == nil {
+				req.Form = make(url.Values)
 			}
 		}
 	default:
 		if req.Form == nil {
-			// this call to ParseFrom() will not touch the body because of the method
+			// this call to ParseFrom() will not touch the body because the request's method doesn't call for it
 			if err := req.ParseForm(); err != nil {
 				return "", fmt.Errorf("restplay: failed to parse request form from URL: %w", err)
 			}
 		}
-		if clientID := req.Form.Get(clientIDKey); clientID != "" {
-			return clientID, nil
-		}
+	}
+
+	// it is now safe to access the request's form
+	if clientID := req.Form.Get(clientIDKey); clientID != "" {
+		return clientID, nil
 	}
 
 	// all known cases exhausted without finding a client_id
