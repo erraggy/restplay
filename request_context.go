@@ -19,7 +19,7 @@ const (
 )
 
 var (
-	// ErrInvalidBearerToken is returned is a Bearer token is defined but invalid
+	// ErrInvalidBearerToken is returned if a Bearer token is defined but not valid
 	ErrInvalidBearerToken = errors.New("restplay: invalid token")
 	// ErrNilRequest is returned if a nil *http.Request is received
 	ErrNilRequest = errors.New("restplay: cannot get client_id from nil request")
